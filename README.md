@@ -122,6 +122,15 @@ unmeasured candidate knowledge ──────► predicted effect ──► 
 
 The deployment candidate's measured response is never an input. Candidates missing all supported knowledge modalities receive the frozen all-missing score defined by the protocol.
 
+### Corrections made after external review
+
+Two defects in the submitted implementation were reported by a reviewer and are corrected here.
+
+- **Ridge penalty selection.** The submitted selection cut cross-validation folds over row indices and fitted one response basis over every row before the folds were cut. A gene with rows in several training contexts could therefore sit on both sides of a fold, and held-out responses shaped the basis their own prediction was reconstructed in. `src/gene_open_inverse/revision_v1/grouped_fit.py` cuts folds over gene identities and refits the basis inside each fold, and `four_context_v1.predictors.fit` uses it by default. `selection="frozen"` reproduces the submitted selection. On the published pools the selected penalty is unchanged, so the reported numbers stand; `revision_v1/test_grouped_fit.py` shows the submitted folds splitting 173 gene identities on a synthetic pool where the corrected folds split none.
+- **Fusion normalization.** The two branches are standardized per query row over every column they are given, which in the published runs is the whole scored pool rather than the evaluated subset of it. The code always did this; the submitted manuscript equation described it imprecisely, and the revision states it as implemented. `four_context_v1.evaluate.fuse` now says which pool it standardizes over. The PDF in `paper/` is the earlier build.
+
+`release/VCDesign_ICLR2027_code/` is the code as submitted and is left unchanged, so the two versions can be compared.
+
 ## 🌍 Evaluation contexts
 
 | Context | Perturbation setting | Role |
@@ -189,6 +198,7 @@ src/gene_open_inverse/
 ├── four_context_v1/                   K562/RPE1/HepG2/Jurkat data contracts
 ├── external_baselines_v1/             comparator adapters and reporting
 ├── open_vocab_generalization_v1/      masking and open-vocabulary analyses
+├── revision_v1/                       corrections made after external review
 └── model/                             knowledge features and model components
 
 configs/                               portable paper-run configuration

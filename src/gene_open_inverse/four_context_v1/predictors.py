@@ -125,8 +125,27 @@ def _cross_validate(features: np.ndarray, targets: np.ndarray, truth: np.ndarray
 
 def fit(features: np.ndarray, responses: np.ndarray, present: np.ndarray, keys: np.ndarray,
         contexts: tuple[str, ...], rank: int = ced.BASIS_RANK,
-        weights: np.ndarray | None = None) -> EffectPredictor:
-    """Fit the V1 recipe on one training pool.  Reads no held-context response."""
+        weights: np.ndarray | None = None, selection: str = "grouped") -> EffectPredictor:
+    """Fit the V1 recipe on one training pool.  Reads no held-context response.
+
+    ``selection`` chooses how the ridge penalty is selected, and nothing else:
+
+    - ``"grouped"`` (default, the corrected selection): folds are cut over gene
+      identities, so every row of one gene stays on one side, and the response basis is
+      refit from each fold's training rows.  See ``revision_v1.grouped_fit``.
+    - ``"frozen"``: the selection as submitted, with folds over row indices and one
+      basis fitted on every row before the folds are cut.  Kept so the submitted
+      numbers reproduce exactly.
+
+    On the published pools both paths land on the same penalty, so the fitted predictor is
+    identical; the difference is in the selection record.
+    """
+    if selection not in ("grouped", "frozen"):
+        raise ValueError(f"unknown selection {selection!r}")
+    if selection == "grouped":
+        from ..revision_v1.grouped_fit import fit_grouped
+        return fit_grouped(features, responses, present, keys, contexts, rank=rank,
+                           weights=weights)
     keep = np.flatnonzero(np.asarray(present, dtype=bool))
     if keep.size <= rank:
         raise ValueError(f"pool of {keep.size} usable rows cannot support a rank-{rank} basis")
@@ -134,6 +153,8 @@ def fit(features: np.ndarray, responses: np.ndarray, present: np.ndarray, keys: 
     targets = basis.project(responses[keep])
     row_weights = np.ones(keep.size) if weights is None else np.asarray(weights)[keep]
     record = _cross_validate(features[keep], targets, responses[keep], basis, row_weights)
+    record["fold_unit"] = "row index (as submitted)"
+    record["basis"] = "fitted on every row before the folds are cut (as submitted)"
     penalty = float(record["selected_penalty"])
     identities = np.unique([key.split("|", 1)[1] for key in np.asarray(keys, dtype=str)[keep].tolist()])
     return EffectPredictor(

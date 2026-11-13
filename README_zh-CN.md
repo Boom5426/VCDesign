@@ -97,6 +97,15 @@ STRING + MAP-KG 候选特征 ─────────► ridge effect predict
 
 部署时，候选自身的实测响应**不会**作为输入。对于缺失所有受支持知识模态的候选，系统使用协议中冻结的 all-missing score。
 
+### 外部评审后的两处修正
+
+提交版实现中有两处缺陷由审稿人指出，这里已修正。
+
+- **ridge penalty selection。** 提交版按行号切交叉验证折，并在切折之前用全部行拟合一个 response basis。一个基因若在多个训练环境中都有行，就可能同时落在折的两侧，而被留出的响应也参与了重建其自身预测的那个基空间。`src/gene_open_inverse/revision_v1/grouped_fit.py` 改为按基因身份切折，并在每折内部重新拟合 basis；`four_context_v1.predictors.fit` 默认使用它，传 `selection="frozen"` 可复现提交版的选择。在论文用到的候选池上所选 penalty 不变，因此已报告的数字不受影响；`revision_v1/test_grouped_fit.py` 在一个合成池上显示提交版切法会让 173 个基因身份跨折，修正后为 0。
+- **fusion normalization。** 两个分支按 query 行、在传入矩阵的全部列上标准化，在论文运行中就是整个打分候选池，而不是其中被评价的子集。代码一直如此，是提交版论文中的公式描述不准确，修订版已按实现写明；`four_context_v1.evaluate.fuse` 的文档字符串现在写明了在哪个池上标准化。`paper/` 下的 PDF 仍是此前的构建。
+
+`release/VCDesign_ICLR2027_code/` 保持为提交时的代码，未作改动，便于对照。
+
 ## 🌍 评价环境
 
 | Context | 扰动设置 | 作用 |
@@ -164,6 +173,7 @@ src/gene_open_inverse/
 ├── four_context_v1/                   K562/RPE1/HepG2/Jurkat data contracts
 ├── external_baselines_v1/             comparator adapters 与 reporting
 ├── open_vocab_generalization_v1/      masking 与 open-vocabulary analyses
+├── revision_v1/                       外部评审后的修正
 └── model/                             knowledge features 与模型组件
 
 configs/                               可移植的 paper-run 配置

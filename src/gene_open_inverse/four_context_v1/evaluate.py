@@ -61,7 +61,14 @@ def row_z(matrix: np.ndarray) -> np.ndarray:
 
 
 def fuse(base: np.ndarray, effect: np.ndarray, beta: float = 1.0) -> np.ndarray:
-    """The frozen fusion: z-score additive at unit weight, no fitted coefficient."""
+    """The frozen fusion: z-score additive at unit weight, no fitted coefficient.
+
+    Each branch is standardized per query row over every column of the matrix it is
+    given, so the published runs, which pass the whole scored pool, standardize over
+    that pool and not over the evaluated subset of it.  Standardizing over the
+    evaluated subset instead is a different quantity; the runs that do so are reported
+    separately.
+    """
     return row_z(base) + beta * row_z(effect)
 
 
