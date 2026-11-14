@@ -897,3 +897,82 @@ def test_60_a_real_held_context_contributes_sources_but_never_responses():
     # and the held context never contributes a training row
     assert "HELD" not in real["training"]
     assert geometry["HELD_distance_to_training_centres"]["is_a_distinguishable_context"]
+
+
+def _fuse_before_the_switch(base, effect, beta=1.0):
+    # The fusion as it stood before ``standardize_over`` existed: the specification of the default.
+    return ev.row_z(base) + beta * ev.row_z(effect)
+
+
+def _fuse_on_the_evaluated_subset(base, effect, eligible):
+    # Both branches standardized over the evaluated columns only, 0.0 elsewhere (never graded).
+    base = np.asarray(base, dtype=np.float64)
+    effect = np.asarray(effect, dtype=np.float64)
+    columns = np.flatnonzero(eligible)
+    scores = np.zeros_like(base)
+    scores[:, columns] = ev.row_z(base[:, columns]) + ev.row_z(effect[:, columns])
+    return scores
+
+
+def test_61_the_default_fusion_is_exactly_the_function_the_option_was_added_to():
+    generator = np.random.default_rng(61)
+    base = generator.standard_normal((7, 50)) * generator.uniform(0.2, 4.0, size=(7, 1))
+    effect = generator.standard_normal((7, 50)) + 3.0
+    for beta in (1.0, 0.5, 2.5):
+        assert np.array_equal(ev.fuse(base, effect, beta), _fuse_before_the_switch(base, effect, beta))
+        assert np.array_equal(ev.fuse(base, effect, beta, standardize_over=None),
+                              _fuse_before_the_switch(base, effect, beta))
+    assert np.array_equal(ev.fuse(base, effect), ev.row_z(base) + ev.row_z(effect))
+
+
+def test_62_standardizing_over_the_subset_makes_its_ranking_independent_of_columns_outside_it():
+    # The case that tells the two normalizations apart: the same subset, ranked once alone and once
+    # inside a larger pool whose extra columns spread the effect branch far wider than the base
+    # branch.  Standardized over the whole pool, the extra columns change how the two branches weigh
+    # against each other inside the subset.  Standardized over the subset, they cannot.
+    generator = np.random.default_rng(62)
+    queries, inside, outside = 9, 40, 25
+    base = generator.standard_normal((queries, inside))
+    effect = generator.standard_normal((queries, inside))
+    base_wide = np.concatenate([base, generator.standard_normal((queries, outside))], axis=1)
+    effect_wide = np.concatenate([effect, 30.0 * generator.standard_normal((queries, outside))], axis=1)
+    subset = np.arange(inside + outside) < inside
+
+    alone = ev.fuse(base, effect)
+    over_subset = ev.fuse(base_wide, effect_wide, standardize_over=subset)
+    assert np.allclose(over_subset[:, :inside], alone, rtol=0.0, atol=1e-12)
+    for row in range(queries):
+        assert np.array_equal(np.argsort(over_subset[row, :inside], kind="stable"),
+                              np.argsort(alone[row], kind="stable"))
+    assert (over_subset[:, inside:] == 0.0).all()
+
+    over_pool = ev.fuse(base_wide, effect_wide)[:, :inside]
+    reordered = [not np.array_equal(np.argsort(over_pool[row], kind="stable"),
+                                    np.argsort(alone[row], kind="stable")) for row in range(queries)]
+    assert any(reordered), "the default fusion should be able to reorder a subset it shares a pool with"
+
+
+def test_63_the_subset_option_equals_the_evaluated_subset_definition_and_refuses_bad_selections():
+    generator = np.random.default_rng(63)
+    base = generator.standard_normal((6, 80))
+    effect = generator.standard_normal((6, 80))
+    eligible = generator.random(80) < 0.4
+    assert eligible.sum() > 10
+    expected = _fuse_on_the_evaluated_subset(base, effect, eligible)
+
+    got = ev.fuse(base, effect, standardize_over=eligible)
+    assert np.array_equal(got, expected)
+    assert (got[:, ~eligible] == 0.0).all()
+    # an index array selects the same columns whatever its order, and repeats change nothing
+    shuffled = generator.permutation(np.flatnonzero(eligible))
+    assert np.array_equal(ev.fuse(base, effect, standardize_over=np.concatenate([shuffled, shuffled[:3]])), expected)
+    # beta enters the subset path exactly as it enters the default path
+    assert np.array_equal(ev.fuse(base, effect, beta=2.0, standardize_over=eligible)[:, eligible],
+                          ev.row_z(base[:, eligible]) + 2.0 * ev.row_z(effect[:, eligible]))
+    # a float array would otherwise be truncated to indices, so a mask cast to float selects columns 0 and 1
+    for bad in (np.zeros(80, dtype=bool), np.ones(79, dtype=bool), np.array([0, 80]), np.array([-1, 3]),
+                eligible.astype(float), np.array([0.0, 2.0]), np.array([], dtype=np.int64)):
+        with pytest.raises(ValueError):
+            ev.fuse(base, effect, standardize_over=bad)
+    with pytest.raises(ValueError):
+        ev.fuse(base, effect[:, :79], standardize_over=eligible)

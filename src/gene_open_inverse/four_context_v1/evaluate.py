@@ -60,16 +60,48 @@ def row_z(matrix: np.ndarray) -> np.ndarray:
         values.std(axis=1, keepdims=True), 1e-12)
 
 
-def fuse(base: np.ndarray, effect: np.ndarray, beta: float = 1.0) -> np.ndarray:
+def _columns(selection, width: int) -> np.ndarray:
+    """A boolean mask or an integer index array as sorted unique column indices."""
+    selection = np.asarray(selection)
+    if selection.dtype == bool:
+        if selection.shape != (width,):
+            raise ValueError(f"a boolean selection needs one entry per column ({width}), got {selection.shape}")
+        columns = np.flatnonzero(selection)
+    elif selection.dtype.kind in "iu":
+        columns = np.unique(selection.astype(np.int64))
+        if columns.size and (columns[0] < 0 or columns[-1] >= width):
+            raise ValueError(f"column indices must lie in [0, {width})")
+    else:
+        raise ValueError("standardize_over must be a boolean mask or an integer index array, "
+                         f"got dtype {selection.dtype}")
+    if columns.size == 0:
+        raise ValueError("standardize_over selects no column")
+    return columns
+
+
+def fuse(base: np.ndarray, effect: np.ndarray, beta: float = 1.0,
+         standardize_over: np.ndarray | None = None) -> np.ndarray:
     """The frozen fusion: z-score additive at unit weight, no fitted coefficient.
 
-    Each branch is standardized per query row over every column of the matrix it is
-    given, so the published runs, which pass the whole scored pool, standardize over
-    that pool and not over the evaluated subset of it.  Standardizing over the
-    evaluated subset instead is a different quantity; the runs that do so are reported
-    separately.
+    By default each branch is standardized per query row over every column of the matrix
+    it is given, so the published runs, which pass the whole scored pool, standardize
+    over that pool and not over the evaluated subset of it.
+
+    ``standardize_over`` standardizes each branch over a column subset instead, a boolean
+    mask or an integer array of column indices. Columns outside the subset are never graded and are
+    returned as 0.0, so a ranking of the subset cannot depend on what lies outside it. With
+    the default ``None`` the result is exactly the function this replaced.
     """
-    return row_z(base) + beta * row_z(effect)
+    if standardize_over is None:
+        return row_z(base) + beta * row_z(effect)
+    base = np.asarray(base, dtype=np.float64)
+    effect = np.asarray(effect, dtype=np.float64)
+    if base.shape != effect.shape or base.ndim != 2:
+        raise ValueError(f"base and effect must be matrices of one shape, got {base.shape} and {effect.shape}")
+    columns = _columns(standardize_over, base.shape[1])
+    scores = np.zeros_like(base)
+    scores[:, columns] = row_z(base[:, columns]) + beta * row_z(effect[:, columns])
+    return scores
 
 
 def stratum_metrics(scores: np.ndarray, utility: np.ndarray, candidate_ids: np.ndarray,

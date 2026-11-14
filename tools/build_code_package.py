@@ -12,8 +12,8 @@ from pathlib import Path
 
 
 ARCHIVE_ROOT = "VCDesign_code_package"
-PACKAGE_VERSION = "0.2.3"
-RELEASE_DATE = "2026-09-26"
+PACKAGE_VERSION = "0.3.0"
+RELEASE_DATE = "2026-11-14"
 ROOT_FILES = (
     "CODE_PACKAGE_README.md",
     "PROJECT_STRUCTURE.md",
@@ -118,8 +118,9 @@ def _manifest(payloads: dict[str, bytes]) -> bytes:
 
 
 def _zip_info(relative: str) -> zipfile.ZipInfo:
+    year, month, day = (int(part) for part in RELEASE_DATE.split("-"))
     info = zipfile.ZipInfo(
-        f"{ARCHIVE_ROOT}/{relative}", date_time=(2026, 9, 26, 0, 0, 0)
+        f"{ARCHIVE_ROOT}/{relative}", date_time=(year, month, day, 0, 0, 0)
     )
     info.compress_type = zipfile.ZIP_DEFLATED
     info.create_system = 3

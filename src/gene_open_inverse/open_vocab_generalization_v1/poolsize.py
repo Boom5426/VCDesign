@@ -23,6 +23,16 @@ are filled by the largest order statistics of the score, so a score with systema
 error puts more of its errors into the budget when there are more candidates to draw
 them from.  A method can therefore help at one vocabulary size and hurt at another
 without anything about the method or the candidates changing.
+
+Two ways of fusing, selected by ``--standardize``.  ``pool`` (the default, and the curve as
+published) standardizes each branch of the fusion over the whole K562-fold pool and then
+restricts every subsample to its columns, so a subsample's scores were standardized with
+columns it does not contain.  ``subset`` fuses again inside each subsample, standardizing each
+branch over that subsample's columns only, which is the fusion as written when the pool a
+query ranks is the subsample.  The effect arm and the noise probes are re-fused; the base arm
+needs nothing, because a per-row z-score is monotone and the order of the base scores inside a
+subsample is the same under either option.  Everything else, the pack, the predictor, the
+classes, the sizes and the subsample seeds, is unchanged.
 """
 from __future__ import annotations
 
@@ -54,6 +64,7 @@ SEEDS = (20260918, 20260919, 20260920)
 # chosen to match any observed curve.  Only the shape of the curve is read, never its level.
 NOISE_WEIGHTS = (0.25, 0.5, 1.0)
 NOISE_SEED = 20260921
+STANDARDIZE = ("pool", "subset")
 
 
 def subsample(rows: np.ndarray, size: int, seed: int) -> np.ndarray:
@@ -64,12 +75,16 @@ def subsample(rows: np.ndarray, size: int, seed: int) -> np.ndarray:
 
 
 def run(args: argparse.Namespace) -> dict:
+    standardize = getattr(args, "standardize", "pool")
+    if standardize not in STANDARDIZE:
+        raise ValueError(f"--standardize must be one of {STANDARDIZE}, got {standardize!r}")
     packs = {name: hn.load_pack(name, args.packs) for name in fc.CONTEXTS}
     pack = packs[ov.NATURAL_FOLD]
     pool = hn.training_pool(packs, ov.NATURAL_TRAINING)
     fitted = pd.fit(pool["features"], pool["responses"], pool["present"], pool["keys"],
                     ov.NATURAL_TRAINING)
     effect = fitted.effect(pack.features, pack.present)
+    cosine = [ev.effect_cosine(pack.query_responses, effect, view) for view in (0, 1)]
     arms = {"BASE": pack.base, "EFFECT": hn.effect_arms(pack, effect)}
 
     generator = np.random.default_rng(NOISE_SEED)
@@ -90,6 +105,7 @@ def run(args: argparse.Namespace) -> dict:
         "why": ("delta MBRU is a property of a candidate pool as well as of a method; "
                 "a seen-versus-unseen contrast taken at 1570 against 6255 is not "
                 "controlled unless the curve is flat"),
+        "standardize": standardize,
         "sizes": list(SIZES), "seeds": list(SEEDS),
         "predictor": {"rows": fitted.rows, "penalty": fitted.penalty},
         "class_sizes": {name: int(rows.size) for name, rows in classes.items()},
@@ -105,7 +121,16 @@ def run(args: argparse.Namespace) -> dict:
                 chosen = subsample(rows, size, seed)
                 mask = np.zeros(pack.ids.size, dtype=bool)
                 mask[chosen] = True
-                block = ev.evaluate_arms(arms, pack.utility, pack.ids,
+                graded = arms
+                if standardize == "subset":
+                    graded = {"BASE": pack.base,
+                              "EFFECT": [ev.fuse(pack.base[view], cosine[view], standardize_over=mask)
+                                         for view in (0, 1)]}
+                    for weight in NOISE_WEIGHTS:
+                        graded[f"NOISE[{weight}]"] = [
+                            ev.fuse(pack.base[view], noise[view], beta=weight, standardize_over=mask)
+                            for view in (0, 1)]
+                block = ev.evaluate_arms(graded, pack.utility, pack.ids,
                                          pack.self_positions, mask)
                 if "skipped" in block:
                     continue
@@ -149,8 +174,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="delta MBRU against candidate pool size")
     parser.add_argument("--packs", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--standardize", choices=STANDARDIZE, default="pool",
+                        help="pool: standardize each fusion branch over the whole pool, as published "
+                             "(default); subset: over the columns of each subsample")
     record = run(parser.parse_args())
-    print("delta MBRU against pool size, same predictor, same queries, same utility")
+    print("delta MBRU against pool size, same predictor, same queries, same utility; "
+          f"each fusion branch standardized over the {'whole pool' if record['standardize'] == 'pool' else 'subsample'}")
     header = "  ".join(f"{size:>8d}" for size in SIZES)
     print(f"{'class':<18}{header}")
     for name, curve in record["curve"].items():

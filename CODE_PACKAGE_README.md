@@ -42,7 +42,7 @@ python examples/ced_demo.py
 python -m pytest -q
 ```
 
-The expected test result for this release is `162 passed`. The demo checks response-basis construction, ridge effect prediction, missing-knowledge handling, and score fusion. These are software checks, not biological results.
+The expected test result for this release is `169 passed`. The demo checks response-basis construction, ridge effect prediction, missing-knowledge handling, and score fusion. These are software checks, not biological results.
 
 ## Reproducing the primary training run
 
@@ -82,6 +82,14 @@ The training command refuses to overwrite an existing output directory. The conf
 | Train the final base scorer | `python -m gene_open_inverse.final_clean_model_v1.train` |
 | Run Candidate Effect Distillation | `python -m gene_open_inverse.candidate_effect_distillation_v1.run` |
 | Build four-context inputs | `python -m gene_open_inverse.four_context_v1.build` |
+
+## Corrections made after external review
+
+This release differs from the first one in three respects. The defaults reproduce the reported numbers.
+
+- **Ridge penalty selection.** Cross-validation folds are cut over gene identities and the response basis is refit inside each fold (`gene_open_inverse/revision_v1/grouped_fit.py`). `four_context_v1.predictors.fit` uses it by default, and `selection="frozen"` reproduces the earlier selection. On the published pools the selected penalty is unchanged.
+- **Fusion normalization.** `four_context_v1.evaluate.fuse` standardizes each branch per query row over every column it is given, which in the published runs is the whole scored pool, and its docstring now says so.
+- **An option to standardize over the evaluated candidates.** `four_context_v1.evaluate.fuse(base, effect, standardize_over=mask)` standardizes both branches over the columns selected by a boolean mask or an index array only, and returns 0.0 elsewhere, so those columns must not be graded. `python -m gene_open_inverse.open_vocab_generalization_v1.poolsize --packs PACKS --output OUT --standardize subset` does the same inside every subsample of the vocabulary-size curve. The defaults, `standardize_over=None` and `--standardize pool`, are the published computation. Tests 61 to 63 in `four_context_v1/test_protocol.py` cover the option.
 
 ## Data provenance
 
