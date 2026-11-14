@@ -270,6 +270,7 @@ def _fit_folds(packs: dict, training: tuple[str, ...], pack, eligible: np.ndarra
         record[str(fold)] = {"masked_identities": int(inside.sum()),
                              "rows": model.rows, "identities": model.identities,
                              "penalty": model.penalty,
+                             "penalty_selection": model.cross_validation["selection"],
                              "held_out_gene_space_cosine": model.held_out_cosine,
                              "explained_energy": model.basis.explained}
     return fitted, effects, record
@@ -381,6 +382,7 @@ def cross_context(packs: dict, held: str, adjacency: dict) -> dict:
             "seen_predictor": {"rows": seen_predictor.rows,
                                "identities": seen_predictor.identities,
                                "penalty": seen_predictor.penalty,
+                               "penalty_selection": seen_predictor.cross_validation["selection"],
                                "held_out_gene_space_cosine": seen_predictor.held_out_cosine,
                                "explained_energy": seen_predictor.basis.explained},
             "fold_predictors": fit_record,
@@ -429,6 +431,7 @@ def within_context(packs: dict, name: str, adjacency: dict) -> dict:
             "seen_predictor": {"rows": seen_predictor.rows,
                                "identities": seen_predictor.identities,
                                "penalty": seen_predictor.penalty,
+                               "penalty_selection": seen_predictor.cross_validation["selection"],
                                "held_out_gene_space_cosine": seen_predictor.held_out_cosine},
             "fold_predictors": fit_record, "folds": fold_blocks}
 

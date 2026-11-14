@@ -137,8 +137,9 @@ def fit(features: np.ndarray, responses: np.ndarray, present: np.ndarray, keys: 
       basis fitted on every row before the folds are cut.  Kept so the submitted
       numbers reproduce exactly.
 
-    On the published pools both paths land on the same penalty, so the fitted predictor is
-    identical; the difference is in the selection record.
+    Whenever both paths land on the same penalty the fitted predictor is identical, and the
+    difference is in the selection record: its held-out cosine is measured on different folds.
+    The record's ``"selection"`` entry names the path that produced it.
     """
     if selection not in ("grouped", "frozen"):
         raise ValueError(f"unknown selection {selection!r}")
@@ -153,6 +154,7 @@ def fit(features: np.ndarray, responses: np.ndarray, present: np.ndarray, keys: 
     targets = basis.project(responses[keep])
     row_weights = np.ones(keep.size) if weights is None else np.asarray(weights)[keep]
     record = _cross_validate(features[keep], targets, responses[keep], basis, row_weights)
+    record["selection"] = "frozen"
     record["fold_unit"] = "row index (as submitted)"
     record["basis"] = "fitted on every row before the folds are cut (as submitted)"
     penalty = float(record["selected_penalty"])

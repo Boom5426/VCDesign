@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 ARCHIVE_ROOT = "VCDesign_code_package"
-PACKAGE_VERSION = "0.3.0"
+PACKAGE_VERSION = "0.3.1"
 RELEASE_DATE = "2026-11-14"
 ROOT_FILES = (
     "CODE_PACKAGE_README.md",

@@ -22,8 +22,15 @@ from gene_open_inverse.external_baselines_v1 import scores as sc              # 
 RESULTS = []
 
 
+class CheckFailed(AssertionError):
+    """A protocol check that does not hold. It fails the test under pytest, and the
+    standalone runner below reports it from ``RESULTS``."""
+
+
 def check(name, ok, detail=""):
     RESULTS.append((name, bool(ok), detail))
+    if not ok:
+        raise CheckFailed(f"{name}: {detail}")
 
 
 def _four_context(tmp: Path, held: str, n: int = 12, g: int = 7, seed: int = 0):
@@ -228,8 +235,10 @@ def main() -> int:
         if name.startswith("test_"):
             try:
                 fn()
+            except CheckFailed:
+                pass                                # already recorded by check()
             except Exception as error:
-                check(name, False, f"raised {type(error).__name__}: {error}")
+                RESULTS.append((name, False, f"raised {type(error).__name__}: {error}"))
     failed = [r for r in RESULTS if not r[1]]
     for name, ok, detail in RESULTS:
         print(f"{'PASS' if ok else 'FAIL'}  {name}" + (f"  [{detail}]" if detail and not ok else ""))

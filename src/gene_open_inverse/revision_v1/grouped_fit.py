@@ -81,6 +81,7 @@ def cross_validate_grouped(features: np.ndarray, responses: np.ndarray, keys: np
                                    / np.maximum(norm, 1e-30))
             squared[penalty].append(((predicted - held_targets) ** 2).mean(axis=1))
     record = {
+        "selection": "grouped",
         "fold_unit": "gene identity", "basis": "refit on each fold's training rows",
         "folds": len(folds), "fold_sizes": [int(part.size) for part in folds],
         "fold_identities": [int(np.unique(identities[part]).size) for part in folds],
@@ -90,6 +91,8 @@ def cross_validate_grouped(features: np.ndarray, responses: np.ndarray, keys: np
     }
     record["selected_penalty"] = float(max(penalties,
                                            key=lambda p: record["held_out_cosine"][str(p)]))
+    record["selected_penalty_by_squared_error"] = float(
+        min(penalties, key=lambda p: record["held_out_squared_error"][str(p)]))
     record["held_out_cosine_at_selected"] = record["held_out_cosine"][str(record["selected_penalty"])]
     return record
 

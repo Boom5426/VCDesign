@@ -30,8 +30,15 @@ from gene_open_inverse.open_vocab_generalization_v1 import support as sp       #
 RESULTS: list[tuple[str, bool, str]] = []
 
 
+class CheckFailed(AssertionError):
+    """A protocol check that does not hold. It fails the test under pytest, and the
+    standalone runner below reports it from ``RESULTS``."""
+
+
 def check(name: str, condition: bool, detail: str = "") -> None:
     RESULTS.append((name, bool(condition), detail))
+    if not condition:
+        raise CheckFailed(f"{name}: {detail}")
 
 
 def _features(count: int, width: int = ov.FEATURE_WIDTH, seed: int = 0) -> np.ndarray:
@@ -501,8 +508,10 @@ def main() -> int:
         if name.startswith("test_") and callable(function):
             try:
                 function()
+            except CheckFailed:
+                pass                                         # already recorded by check()
             except Exception as error:                       # a crash is a failure, not a skip
-                check(name, False, f"raised {type(error).__name__}: {error}")
+                RESULTS.append((name, False, f"raised {type(error).__name__}: {error}"))
     width = max(len(name) for name, _, _ in RESULTS)
     failed = 0
     for name, passed, detail in RESULTS:

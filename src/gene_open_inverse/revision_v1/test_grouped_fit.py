@@ -23,8 +23,15 @@ from gene_open_inverse.revision_v1 import grouped_fit as gf                     
 RESULTS = []
 
 
+class CheckFailed(AssertionError):
+    """A protocol check that does not hold. It fails the test under pytest, and the
+    standalone runner below reports it from ``RESULTS``."""
+
+
 def check(name, condition, detail=""):
     RESULTS.append((name, bool(condition), detail))
+    if not condition:
+        raise CheckFailed(f"{name}: {detail}")
 
 
 def pool(identities=90, contexts=("A", "B", "C"), genes=48, features=16, seed=0):
@@ -106,7 +113,11 @@ def test_selection_switch_changes_only_the_search():
           same_basis == 0.0 and same_path == 0.0
           and grouped.cross_validation["fold_unit"] == "gene identity"
           and frozen.cross_validation["fold_unit"] == "row index (as submitted)"
-          and set(grouped.cross_validation["held_out_cosine"]) == {str(p) for p in ced.RIDGE_PENALTIES},
+          and set(grouped.cross_validation["held_out_cosine"]) == {str(p) for p in ced.RIDGE_PENALTIES}
+          and grouped.cross_validation["selection"] == "grouped"
+          and frozen.cross_validation["selection"] == "frozen"
+          and {"selected_penalty", "selected_penalty_by_squared_error", "held_out_cosine_at_selected"}
+          <= set(grouped.cross_validation) & set(frozen.cross_validation),
           f"basis diff {same_basis}, path diff {same_path}, "
           f"penalties grouped {grouped.penalty} frozen {frozen.penalty}")
 
@@ -115,7 +126,12 @@ def main():
     for test in (test_folds_never_split_a_gene, test_folds_ignore_row_order,
                  test_fold_basis_sees_training_rows_only,
                  test_selection_switch_changes_only_the_search):
-        test()
+        try:
+            test()
+        except CheckFailed:
+            pass                                    # already recorded by check()
+        except Exception as error:                  # a crash is a failure, not a skip
+            RESULTS.append((test.__name__, False, f"raised {type(error).__name__}: {error}"))
     failed = [name for name, ok, _ in RESULTS if not ok]
     for name, ok, detail in RESULTS:
         print(f"{'PASS' if ok else 'FAIL'}  {name}" + (f"  ({detail})" if detail else ""))

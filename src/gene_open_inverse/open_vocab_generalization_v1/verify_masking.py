@@ -5,8 +5,9 @@ Lesson L3 in this programme's decision log: a script must not be its own only wi
 So this file re-derives, from the cached packs and the frozen assets alone, the things
 the masking run asserts, using its own code rather than calling the run's.  It recomputes
 the masking folds from the symbols, rebuilds one context's masked training pools without
-touching ``masked_training_pool``, refits a predictor and checks that the penalty and
-held-out cosine the record reports are reproduced, and re-ranks both arms with an
+touching ``masked_training_pool``, refits a predictor with the penalty selection the record
+names and checks that the penalty and held-out cosine it reports are reproduced, and
+re-ranks both arms with an
 independent ordering to check the reported top-50 utilities.
 
 It refuses to overwrite its own output, and it downgrades to FAIL rather than raising, so
@@ -29,6 +30,15 @@ from ..four_context_v1 import harness as hn
 from ..four_context_v1 import predictors as pd
 from ..model.decision_alignment_v1.contract import BUDGETS
 from . import contract as ov
+
+
+def recorded_selection(entry: dict) -> str:
+    """The penalty selection that produced a predictor record.
+
+    A record without ``penalty_selection`` was written by the submitted code, which had
+    only the row-fold selection, so it is refit with ``"frozen"``.
+    """
+    return str(entry.get("penalty_selection", "frozen"))
 
 
 def independent_folds(ids: np.ndarray) -> np.ndarray:
@@ -133,8 +143,9 @@ def run(args: argparse.Namespace) -> dict:
     note(f"{held} fold {fold}: no masked identity survives in any training context",
          not leaked, {"leaked_rows": len(leaked)})
 
-    fitted = pd.fit(pool["features"], pool["responses"], pool["present"], pool["keys"], training)
     entry = block["fold_predictors"][str(fold)]
+    fitted = pd.fit(pool["features"], pool["responses"], pool["present"], pool["keys"], training,
+                    selection=recorded_selection(entry))
     note(f"{held} fold {fold}: predictor rows", fitted.rows == entry["rows"],
          {"independent": fitted.rows, "recorded": entry["rows"]})
     note(f"{held} fold {fold}: selected penalty", fitted.penalty == entry["penalty"],
@@ -146,7 +157,8 @@ def run(args: argparse.Namespace) -> dict:
 
     # 3.  the graded numbers, re-ranked by an independent ordering
     seen_predictor = pd.fit(full["features"], full["responses"], full["present"],
-                            full["keys"], training)
+                            full["keys"], training,
+                            selection=recorded_selection(block["seen_predictor"]))
     note(f"{held}: seen predictor penalty",
          seen_predictor.penalty == block["seen_predictor"]["penalty"],
          {"independent": seen_predictor.penalty,

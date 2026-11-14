@@ -7,6 +7,7 @@ src/gene_open_inverse/
 ├── four_context_v1/                   K562/RPE1/HepG2/Jurkat data contracts
 ├── external_baselines_v1/             comparator adapters and reporting
 ├── open_vocab_generalization_v1/      masking and open-vocabulary analyses
+├── revision_v1/                       gene-grouped ridge penalty selection (the default)
 └── model/                             frozen knowledge features and model components
 
 configs/                               portable asset paths and paper-run configuration
