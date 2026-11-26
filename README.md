@@ -6,8 +6,7 @@
 <h3>Finite-Budget Intervention Design for Virtual Cells</h3>
 
 <p>  
-  <a href="README.md"><img src="https://img.shields.io/badge/Language-English-0B6E99?style=flat-square&logo=googletranslate&logoColor=white" alt="English" /></a>
-  <a href="README_zh.md"><img src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-24B6A6?style=flat-square&logo=googletranslate&logoColor=white" alt="简体中文" /></a>
+  <a href="README_zh-CN.md"><img src="https://img.shields.io/badge/%E8%AF%AD%E8%A8%80-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-24B6A6?style=flat-square&logo=googletranslate&logoColor=white" alt="简体中文" /></a>
   <img alt="Single-cell" src="https://img.shields.io/badge/scope-single--cell-7B61FF?logo=cell&logoColor=white">
   <img alt="Intervention design" src="https://img.shields.io/badge/task-intervention%20design-008C95?logo=target&logoColor=white">
   <a href="pyproject.toml"><img alt="Python 3.11" src="https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white"></a>
