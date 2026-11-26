@@ -6,7 +6,6 @@
 <h3>面向虚拟细胞的有限预算干预设计</h3>
 
 <p>
-  <a href="https://boom5426.github.io/VCDesign-CED/"><img alt="项目主页" src="https://img.shields.io/badge/project-website-082D39?logo=githubpages&logoColor=white"></a>
   <img alt="单细胞" src="https://img.shields.io/badge/scope-single--cell-7B61FF?logo=cell&logoColor=white">
   <img alt="干预设计" src="https://img.shields.io/badge/task-intervention%20design-008C95?logo=target&logoColor=white">
   <a href="pyproject.toml"><img alt="Python 3.11" src="https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white"></a>
@@ -15,8 +14,6 @@
 </p>
 
 <p><strong>排序真正值得做的实验，而不只是识别干预身份。</strong></p>
-
-<p><a href="README.md">English</a> · <strong>简体中文</strong></p>
 
 <p>
   <a href="https://boom5426.github.io/VCDesign-CED/">🌐 项目主页</a> ·
