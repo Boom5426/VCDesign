@@ -16,7 +16,6 @@
 
 <p><strong>Rank the experiments worth running, not just the intervention identity.</strong></p>
 
-<p><strong>English</strong> · <a href="README_zh-CN.md">简体中文</a></p>
 
 <p>
   <a href="https://boom5426.github.io/VCDesign-CED/">🌐 Project website</a> ·
